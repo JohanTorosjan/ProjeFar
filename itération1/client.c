@@ -7,7 +7,7 @@
 
 
 #define PORT 2633
-#define IP "192.168.1.49"
+#define IP "127.0. 0.1."
 #define TAILLE 30
 char pseudo[TAILLE];
 char fin[]="fin\n";
@@ -76,129 +76,5 @@ int main(int argc, char *argv[]) {
   pthread_join(thread_reception,NULL);
   return 0;
 }
-
-
-
-
-
-
-// int main(int argc, char *argv[]) {
-//     printf("Début programme\n");
-//     int ID = atoi(argv[3]);
-//     int dS = socket(PF_INET, SOCK_STREAM, 0);
-//     if (dS == -1) {
-//         perror("erreur dans l'initialisation du socket");
-//     }
-//     printf("Socket Créé\n");
-//     struct sockaddr_in aS;
-//     aS.sin_family = AF_INET;
-//     inet_pton(AF_INET,argv[1],&(aS.sin_addr)) ;
-//     aS.sin_port = htons(atoi(argv[2])) ;
-//     socklen_t lgA = sizeof(struct sockaddr_in) ;
-//     if (connect(dS, (struct sockaddr *) &aS, lgA) == -1 ) {
-//         perror("erreur dans la connection du socket");
-//         exit(0);
-//     }
-//     printf("Socket Connecté\n");
-//     if (ID == 1) {
-
-   
-//     char *buffer =(char*)malloc(20*sizeof(char));
-//     printf("Entrez un message de taille 20 max: \n");
-//     fgets(buffer,20*sizeof(char),stdin); // stdin = entrée terminal
-//     int taille = strlen(buffer);
-//     if (send(dS, &taille, sizeof(int) , 0) == -1 ) { // +1 pour ajouter délimiteur
-//         perror("erreur dans l'envoie du socket");
-//     }
-//     printf("/////////////\n");
-//     if (send(dS, buffer, strlen(buffer)+1 , 0) == -1 ) { // +1 pour ajouter délimiteur
-//         perror("erreur dans l'envoie du socket");
-//     }
-//     printf("Message Envoyé \n");
-//   }
-//   if (ID == 2) {
-//     int taille;
-//     recv(dS, &taille, sizeof(int), 0) ;
-//     printf("/////////////\n");
-//     char *retour = (char*)malloc(taille*sizeof(char));
-//     recv(dS, retour, taille, 0) ;
-//     printf("Réponse reçue : %s\n", retour) ;
-
-//   }    
-//   shutdown(dS,2) ;
-//   printf("Fin du programme\n");
-// }
-
-
-
-
-
-
-// void *envoi(void *ds) {
-//     int* dS=ds;
-//     char *buffer =(char*)malloc(20*sizeof(char));
-//     printf("Entrez un message de taille 20 max: \n");
-//     fgets(buffer,20*sizeof(char),stdin); // stdin = entrée terminal
-//     int taille = strlen(buffer);
-//     if (send(*dS, &taille, sizeof(int) , 0) == -1 ) { // +1 pour ajouter délimiteur
-//         perror("erreur dans l'envoie du socket");
-//     }
-//     printf("/////////////\n");
-//     if (send(*dS, buffer, strlen(buffer)+1 , 0) == -1 ) { // +1 pour ajouter délimiteur
-//         perror("erreur dans l'envoie du socket");
-//     }
-//     printf("Message Envoyé \n");
-//   }
-
-
-// void *reception(void *ds) {
-//   int* dS=ds;
-//   int taille;
-//   recv(*dS, &taille, sizeof(int), 0) ;
-//   printf("/////////////\n");
-//   char *retour = (char*)malloc(taille*sizeof(char));
-//   recv(*dS, retour, taille, 0) ;
-//   printf("Réponse reçue : %s\n", retour) ;
-  
-// }
-
-// int main(int argc, char *argv[]) {
-
-//   pthread_t thread_envoi;
-//   pthread_t thread_reception;
-
-// /////////////////////////CONNECTION/////////////////////////////// 
-//   int dS = socket(PF_INET, SOCK_STREAM, 0);
-//     if (dS == -1) {
-//         perror("erreur dans l'initialisation du socket");
-//     }
-//     printf("Socket Créé\n");
-//     struct sockaddr_in aS;
-//     aS.sin_family = AF_INET;
-//     inet_pton(AF_INET,argv[1],&(aS.sin_addr)) ;
-//     aS.sin_port = htons(atoi(argv[2])) ;
-//     socklen_t lgA = sizeof(struct sockaddr_in) ;
-//     if (connect(dS, (struct sockaddr *) &aS, lgA) == -1 ) {
-//         perror("erreur dans la connection du socket");
-//         exit(0);
-//     }
-//     printf("Socket Connecté\n");
-// ////////////////////////////////////////////////////////////////////
-
-
-//     pthread_create(&thread_envoi,0,envoi,(void*)&dS);
-//     pthread_create(&thread_reception,0,reception,(void*)&dS);
-//   pthread_join(thread_envoi,0);
-//   pthread_join(thread_reception,0);
-//   shutdown(dS,2);
-// exit(0);
-
-
-// }
-
-
-
-
-
 
 
