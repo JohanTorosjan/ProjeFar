@@ -1,0 +1,6 @@
+@mp
+@end
+@man
+@ls
+@lsS
+@get
