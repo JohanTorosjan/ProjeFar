@@ -1,0 +1,9 @@
+----------------------------------------------------------------------
+@man:                           Pour voir les commandes
+@ls:                            Pour lister les fichiers envoyables
+@lsS:                           Pour lister les fichiers téléchargeables 
+@mp:PSEUDO:MESSAGE              Pour envoyer un message privé
+@get:FILE                       Pour télécharger un fichier depuis le serveur
+@lc:                            Pour quitter le channel
+@end:                           Pour se déconnecter du serveur
+----------------------------------------------------------------------

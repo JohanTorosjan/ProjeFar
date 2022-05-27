@@ -1,0 +1,4 @@
+#1 Général : Discussion générals (0/50)
+#2 Devoirs : Discussion sur les devoirs (0/50)
+#3 Loisirs : Discussion sur le loisirs (0/50)
+#4 Fun : Pour faire des trucs funs (0/50)
