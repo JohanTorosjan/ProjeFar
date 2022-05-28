@@ -19,6 +19,7 @@
 #define PORT 2637
 #define PortForFile 2638
 #define SIZE 1024
+#define MDP "mdp"
 
 // Variables globales
 
@@ -104,9 +105,10 @@ void getnbclient(){
 }
 
 void decoclient(int numclient) {
-    Client client = {numclient,0,"",-1,0,0,0};
-    allclients[numclient] = client;
     pthread_mutex_lock(&mutex);
+    allchannels[allclients[numclient].channel].clientsco--;
+    Client client = {numclient,0,"",-1,0,0,0};
+    allclients[numclient] = client; 
     nbclientsco --;
     pthread_mutex_unlock(&mutex);
 }
@@ -147,13 +149,30 @@ char* getbuffer(char* path){
     fclose(fp);
     return buffer;
 }
+int createchannel(char* nom, char* descr){
+    printf("NOM : %s, DESCR : %s\n",nom,descr);
+    int i=0;
+    while(allchannels[i].num!=-1){
+        i++;
+    }
 
+    allchannels[i].num=i;
+    //allchannels[i].nom=nom;
+    allchannels[i].nom=malloc(strlen(nom)*sizeof(char));
+    strcpy(allchannels[i].nom,nom);
+    allchannels[i].description=malloc(strlen(descr)*sizeof(char));
+    strcpy(allchannels[i].description,descr);
+    printf("NOM : %s, DESCR : %s\n",allchannels[i].nom,allchannels[i].description);
+    printf("Channel numéro %d crée\n",i);
+    return i;
+}
 void writechannels(char* path){
     FILE *fpc;
     fpc=fopen(path,"w+");
     for(int i=0;i<NBCHANNEL;i++){
         if(allchannels[i].num!=-1){
             char channels[strlen(allchannels[i].nom)+strlen(allchannels[i].description)];
+            printf("#%d %s : %s (%d/%d)\n",i+1,allchannels[i].nom,allchannels[i].description,allchannels[i].clientsco,NBCLIENTCHANNEL);
             sprintf(channels,"#%d %s : %s (%d/%d)\n",i+1,allchannels[i].nom,allchannels[i].description,allchannels[i].clientsco,NBCLIENTCHANNEL);
             fwrite(channels,strlen(channels)*sizeof(char),1,fpc);
         }  
@@ -161,6 +180,25 @@ void writechannels(char* path){
     
     fclose(fpc);
 }
+
+
+void writeclients(char* path){
+    FILE *fpc;
+    fpc=fopen(path,"w+");
+    for(int i=0;i<nbclientsco;i++){
+        if(allclients[i].channel!=-1){
+            char infoclient[strlen(allchannels[allclients[i].channel].nom)+strlen(allclients[i].pseudo)+27];
+            printf("[%s] client N° %d : %s \n",allchannels[allclients[i].channel].nom,i+1,allclients[i].pseudo);
+            sprintf(infoclient,"[%s] client N° %d : %s \n",allchannels[allclients[i].channel].nom,i+1,allclients[i].pseudo);
+            fwrite(infoclient,strlen(infoclient)*sizeof(char),1,fpc);
+        }  
+    }
+    
+    fclose(fpc);
+}
+
+
+
 
 int listefiles(char * path,int writefile){
     DIR *d = opendir("./ServerStorage");
@@ -210,7 +248,7 @@ int listefiles(char * path,int writefile){
 /// 0 si la commmande n'est pas valable 
 // i+1 correspondant à l'indice +1 dans de le tableau des commandes de la commande si elle existe 
 int command(char* msg){
-    char allCommand[10][10] = {""};
+    char allCommand[13][10] = {""};
     strcpy(allCommand[0], "@man");
     strcpy(allCommand[1], "@end");
     strcpy(allCommand[2], "@lc");
@@ -219,6 +257,11 @@ int command(char* msg){
     strcpy(allCommand[5], "@get");
     strcpy(allCommand[6], "@ls");
     strcpy(allCommand[7], "@snd");
+    strcpy(allCommand[8], "@adm");
+    strcpy(allCommand[9], "@kick");
+    strcpy(allCommand[10], "@crt");
+    strcpy(allCommand[11], "@acc");
+    strcpy(allCommand[12], "@cc");
     if(msg[0]=='@'){
         char* msgcopy=malloc(strlen(msg)+1);
         strcpy(msgcopy,msg);
@@ -226,7 +269,7 @@ int command(char* msg){
         printf("avant if\n");
         int c = 0;
         printf("token : %s\n",token);
-        for(int i=0;i<8;i++){
+        for(int i=0;i<13;i++){
             printf("%s\n",allCommand[i]);
             if(strcmp(token,allCommand[i])==0){
                 printf("i : %d\n",i);
@@ -330,6 +373,75 @@ char* getfilename(int n){
     closedir(d);
     }
     return filename;
+}
+
+int verifadmin(char * msg){
+    char* mdp;
+    char copy[strlen(msg)+1];
+    strcpy(copy,msg);
+    // char * msgcopy;
+    // msgcopy=strtok(copy,":");
+    // msgcopy=strtok(NULL,":");
+    // msgcopy=strtok(NULL,"\0");
+    mdp=strtok(msg,":");
+    mdp=strtok(NULL,":");
+    if(strcmp(mdp,MDP)==0){
+        return 1;
+    }
+    return 0;
+}
+
+int estadmin(int n){
+    int estadmin=1;
+    if (allclients[n].isAdmin==0)
+    {
+        estadmin=20000;
+        send(allclients[n].dS,&estadmin, sizeof(int),0);
+    }
+    return estadmin;
+}
+
+
+int verifchannel(char* nom, char* descr){
+    if( (strcmp(nom,"")==0) || ( strcmp(descr,"") ==0 ) ) {
+        return -1;
+    }
+
+    for(int i=0;i<getnbchannels();i++){
+        if(strcmp(nom,allchannels[i].nom)==0){
+            return 0;
+        }
+    }
+    return 1;
+}
+/**
+ * @brief 
+ * retourne -2 si le client voulant etre kicker est admin 
+ * retourne -1 si il n'y a pas de pseudo correspondant
+ * retourne i le numéro du client kicker
+ * @param msg 
+ * @return int 
+ */
+
+int kickvalide(char* msg){
+    getnbclient();
+    char* pseudo;
+    char copy[strlen(msg)+1];
+    strcpy(copy,msg);
+    pseudo=strtok(msg,":");
+    pseudo=strtok(NULL,":");
+    for(int i=0;i<=nbclientsco;i++){
+        if (strcmp(allclients[i].pseudo,pseudo)==0){
+            if(allclients[i].isAdmin==1){
+                return -2;
+            }
+            else {
+                return i;
+            }
+        }
+    }
+    return -1;
+
 }
 
 void * sending_file(void* numcliact){   
@@ -443,7 +555,6 @@ void *communication(void * NumCliAct){
         getnbclient();
         int rec=recv(allclients[n].dS,&taille,sizeof(int),0);  // Recoit la taille
         if(rec==0){
-            allchannels[allclients[n].channel].clientsco--;
             decoclient(n);
             break;
         }
@@ -458,10 +569,22 @@ void *communication(void * NumCliAct){
             taille=strlen(msg)+strlen(allchannels[allclients[n].channel].nom)+strlen(allclients[n].pseudo)+16; 
             char tosend[taille];
             sprintf(tosend,"[ %s ] %s : %s\n",allchannels[allclients[n].channel].nom,allclients[n].pseudo,msg);
+            
+            int tailleadmin=strlen(msg)+strlen(allchannels[allclients[n].channel].nom)+strlen(allclients[n].pseudo)+24; 
+            char tosendadmin[tailleadmin];
+            sprintf(tosendadmin,"[ %s ] #admin: %s : %s\n",allchannels[allclients[n].channel].nom,allclients[n].pseudo,msg);
+            
             for(int i=0;i<nbclientsco;i++){
                 if(allclients[i].num!=allclients[n].num && allclients[n].channel==allclients[i].channel){
-                    send(allclients[i].dS,&taille, sizeof(int), 0) ;
-                    send(allclients[i].dS, tosend, strlen(tosend)+1, 0) ;
+                    if(allclients[n].isAdmin==1){
+                        send(allclients[i].dS,&tailleadmin, sizeof(int), 0) ;
+                        send(allclients[i].dS, tosendadmin, strlen(tosendadmin)+1, 0) ;
+                    }
+                    else{
+                        send(allclients[i].dS,&taille, sizeof(int), 0) ;
+                        send(allclients[i].dS, tosend, strlen(tosend)+1, 0) ;
+                    }
+        
                 }
             }
         }
@@ -489,7 +612,7 @@ void *communication(void * NumCliAct){
                         send(allclients[i].dS, tosend, strlen(tosend)+1, 0) ;
                     }
                 }
-                allchannels[allclients[n].channel].clientsco--;
+                //allchannels[allclients[n].channel].clientsco--;
                 decoclient(n);
                 pthread_exit(NULL);
             }
@@ -507,7 +630,7 @@ void *communication(void * NumCliAct){
                 }
                 allchannels[allclients[n].channel].clientsco--;
                 allclients[n].pseudo="";
-                allclients[n].channel=0;
+                allclients[n].channel=-1;
                 printf("client change channel\n");
                 pthread_exit(NULL);
             }
@@ -583,10 +706,129 @@ void *communication(void * NumCliAct){
                     pthread_create(&files_receive[n],NULL,receive_file,&n);
                     pthread_join(files_receive[n],NULL);
                 }
-                
             }
 
+            if(commande == 9){
+                taille = 1009;
+                send(allclients[n].dS,&taille, sizeof(int), 0);      
+                int estadmin=verifadmin(msg);
+                if(estadmin==1){
+                    allclients[n].isAdmin=1;
+                    send(allclients[n].dS,&estadmin, sizeof(int),0);
+                }
+                else{ 
+                    send(allclients[n].dS,&estadmin, sizeof(int),0);
+                }
+            }
 
+            if( commande == 10) {
+                int verificationadmin=estadmin(n);
+                if(verificationadmin==1){
+                    taille = 1010;
+                    send(allclients[n].dS,&taille, sizeof(int), 0);    
+                    int valide=kickvalide(msg);
+                    printf(" valide : %d\n",valide);
+                    send(allclients[n].dS,&valide, sizeof(int),0);
+                    if(valide>=0){
+                        
+                        
+                        // Envoie kick au client //
+                        int kick=20021;
+                        send(allclients[valide].dS,&kick, sizeof(int),0);
+                        taille=strlen(allclients[n].pseudo);
+                        send(allclients[valide].dS,&taille, sizeof(int), 0) ;
+                        send(allclients[valide].dS, allclients[n].pseudo, taille+1, 0) ;
+                        // --------------------//
+
+                        taille=strlen(allclients[valide].pseudo)+strlen(allclients[n].pseudo)+27;
+                        char tosend[taille];
+                        sprintf(tosend,"%s s'est fait kick par %s\n",allclients[valide].pseudo,allclients[n].pseudo);
+                        decoclient(valide);
+                        for(int i=0;i<nbclientsco;i++){
+                            send(allclients[i].dS,&taille, sizeof(int), 0) ;
+                            send(allclients[i].dS, tosend, strlen(tosend)+1, 0) ;
+                        }        
+                    }
+                }
+            }
+
+            if(commande == 11){
+                int verificationadmin=estadmin(n);
+                if(verificationadmin==1){
+
+                    int channeldispos=NBCHANNEL-getnbchannels();
+                    if(channeldispos>0){
+                        taille =10111;
+                        send(allclients[n].dS,&taille, sizeof(int), 0);
+                        
+                        
+                        int channelok=0;
+                        while(channelok!=1){
+                            printf("MODE RECEPTION \n");
+                            
+            //--------------------------------reception nom---------------------------------//
+                            int taillenom;
+                            int rec = recv(allclients[n].dS,&taillenom,sizeof(int),0);
+                    
+                    /////////////////////// Deconnexion ///////////////////////
+                            if(rec == 1){
+                                decoclient(n);
+                                printf("client deco\n");
+                                pthread_exit(NULL);
+                            }
+
+                            char nomchannel[taillenom];
+                            recv(allclients[n].dS,nomchannel,sizeof(char)*taillenom,0);
+                            puts(nomchannel);
+                            char *pos;
+                            pos=strchr(nomchannel,'\n');
+                            *pos='\0';
+                            
+                            
+            //--------------------------------reception description---------------------------------//
+                            int tailledescr;
+                            rec = recv(allclients[n].dS,&tailledescr,sizeof(int),0);
+                    
+                    /////////////////////// Deconnexion ///////////////////////
+                            if(rec == 1){
+                                decoclient(n);
+                                printf("client deco\n");
+                                pthread_exit(NULL);
+                            }
+                            char descriptionchannel[tailledescr];
+                            recv(allclients[n].dS,descriptionchannel,sizeof(char)*tailledescr,0);
+                            puts(descriptionchannel);
+                            pos=strchr(descriptionchannel,'\n');
+                            *pos='\0';
+            //------------------------------------------------------------------------------------//
+                            channelok=verifchannel(nomchannel,descriptionchannel);
+                            send(allclients[n].dS,&channelok, sizeof(int), 0);
+                            if(channelok==1){
+                                createchannel(nomchannel,descriptionchannel); 
+                            }
+                        }
+                    }
+
+                    else{
+                        taille =10110;
+                        send(allclients[n].dS,&taille, sizeof(int), 0);
+                    }
+                }
+            }
+
+            if(commande == 12){
+                taille=1012;
+                send(allclients[n].dS,&taille, sizeof(int), 0);
+        
+                send(allclients[n].dS,&nbclientsco,sizeof(int),0);
+                writeclients("CLients.txt");
+                int taillefichier3=getfilesize("CLients.txt");
+                char* bufferClient=malloc(taillefichier3*sizeof(char));
+                send(allclients[n].dS,&taillefichier3,sizeof(int),0);
+                bufferClient=getbuffer("CLients.txt");
+                send(allclients[n].dS,bufferClient,taillefichier3*sizeof(char),0);
+                free(bufferClient);     
+            }
 
         }
         //Si la commande n'est pas valide 

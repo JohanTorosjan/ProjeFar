@@ -182,7 +182,7 @@ int listfiles(int c){
     }
     if (c == 1) {
         printf("----------------------\n");
-        printf("@snd:NUM FILE:\n");
+        printf("Utilisez la commande @snd:filenumber: pour envoyer un fichier au serveur\n");
     }
     return cpt;
 }
@@ -238,6 +238,7 @@ void *SendingFile(void *num){
     }
     printf("File sended \n");
     fclose(fp);
+
     shutdown(dsF,SHUT_RDWR);
     pthread_exit(NULL);
 }
@@ -316,6 +317,102 @@ void *rcvMessage(void *ds) {
             }
         }
 
+        else if (taille == 1009){
+            int estadmin;
+            recv(dS,&estadmin, sizeof(int), 0);
+            if(estadmin==1){
+                printf("Vous êtes bien connecté en tant qu'Admin, faites @man: pour voir les commandes\n");
+            }
+            else{
+                printf("Mauvais mot de passe admin\n");
+            }
+        }
+
+        else if (taille == 1010){
+            int kickvalide;
+            recv(dS,&kickvalide, sizeof(int), 0);
+            if(kickvalide==-2){
+                printf("Impossible de kicker un autre administrateur\n");
+            }
+            else if (kickvalide ==-1){
+                printf("Ce pseudo n'existe pas\n");
+            }
+
+        }
+
+        else if (taille == 10111){
+            int channelok=0;
+            printf("avant while\n");
+            pthread_cancel(thread_envoi);
+            while(channelok!=1){
+
+
+                char nomchannel[TAILLE];
+                printf("\nEntrez un nom pour le channel : ");
+                fgets(nomchannel,TAILLE,stdin);
+                int taillenomchannel=(strlen(nomchannel)+1)*sizeof(char);
+                if(send(dS,&taillenomchannel,sizeof(int),0)==0){quit();}
+                send(dS,nomchannel,(strlen(nomchannel)+1)*sizeof(char),0);
+
+
+                
+                char descriptionchannel[TAILLE];
+                printf("\nEntrez une description pour le channel : ");
+                fgets(descriptionchannel,TAILLE,stdin);
+                int tailledescriptionchannel=(strlen(descriptionchannel)+1)*sizeof(char);
+                if(send(dS,&tailledescriptionchannel,sizeof(int),0)==0){quit();}
+                send(dS,descriptionchannel,(strlen(descriptionchannel)+1)*sizeof(char),0);
+
+
+                recv(dS,&channelok, sizeof(int), 0);
+
+                if(channelok==0){
+                    printf("Veuillez entrez un nom de channel non existant\n");
+                }
+                else if(channelok==-1){
+                    printf("Veuillez ne pas laisser de champs vide\n");
+                }
+            }
+            pthread_create(&thread_envoi,NULL,sendMessage,NULL);
+            printf("Channel Crée\n");
+        }
+
+        else if(taille==10110){
+            printf("Nombre maximum de channel atteind\n");
+        }
+
+        else if( taille==1012){
+            int nbcl;
+            recv(dS,&nbcl, sizeof(int), 0);
+            printf("NB CLIEBT CO : %d\n",nbcl);
+
+            int taillemessage3;
+            taillemessage3 -= 2;
+            recv(dS,&taillemessage3,sizeof(int),0); 
+            char buffer3[taillemessage3];
+            recv(dS,buffer3,(taillemessage3)*sizeof(char),0);
+            printf("%s\n",buffer3);
+            
+        }
+        //-------------------- SI LE CLIENT TENTE UNE COMMANDE ADMIN  ---------------------//
+
+
+        else if( taille==20000){
+
+            printf("Vous n'avez pas les droits d'administrateur, tentez @adm:PASSWORD: pour vous connecter\n");
+        
+        }
+        //-------------------- SI LE CLIENT SE FAIT KICK ---------------------//
+
+        else if (taille == 20021){
+            recv(dS, &taille, sizeof(int), 0);
+            char *msg = (char*)malloc(taille*sizeof(char));
+            recv(dS, msg, taille, 0);
+            printf("Vous vous êtes fait kicker par %s\n",msg);
+            quit();
+            exit(0);
+        }
+
         
 
         /*
@@ -382,8 +479,8 @@ int main(int argc, char *argv[]) {
     recv(dS,&taillemessage,sizeof(int),0); 
     char buffer[taillemessage];
     recv(dS,buffer,taillemessage*sizeof(char),0);
+    printf("\n \n \n");
     printf("%s\n",buffer);
-
     int nbchannels;
     recv(dS,&nbchannels,sizeof(int),0);
     
