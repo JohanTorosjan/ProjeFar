@@ -32,6 +32,48 @@ void quit(){
     exit(0);
 }
 
+void printrouge(char * msg){
+    printf("\033[31m" );
+    printf("%s",msg);
+    printf("\033[37m" );
+}
+
+void printbleu(char * msg){
+    printf("\033[34m" );
+    printf("%s",msg);
+    printf("\033[37m" );
+}
+
+void printvert(char * msg){
+    printf("\033[32m" );
+    printf("%s",msg);
+    printf("\033[37m" );
+}
+
+void printorange(char * msg){
+    printf("\033[33m" );
+    printf("%s",msg);
+    printf("\033[37m" );
+}
+void printcyanfile(char* msg, int num) {
+    printf("\033[36m" );
+    printf("%d : %s\n",num,msg);
+    printf("\033[37m" );
+}
+
+void printcyan(char* msg) {
+    printf("\033[36m" );
+    printf("%s",msg);
+    printf("\033[37m" );
+}
+
+void printcyanint(int n){
+    printf("\033[36m" );
+    printf("%d",n);
+    printf("\033[37m" );
+}
+
+ 
 void rcvFileText() {
     int taillemessage;
     recv(dS,&taillemessage,sizeof(int),0); 
@@ -61,49 +103,14 @@ char* getfilename(int n) {
 void *sendMessage() {
     char message[TAILLE];
     while(1){
-        printf("\n");
+       // printf("\n");
         fgets(message,TAILLE,stdin);
         int taille=(strlen(message)+1)*sizeof(char);
         if(send(dS,&taille,sizeof(int),0)==0){quit();}
         send(dS,message,(strlen(message)+1)*sizeof(char),0);
+        printf("\n");
+        printf("\n");
     }
-
-    /*
-  char message[TAILLE];
-  pthread_t thread_SendingFile;
-  while(1){
-    printf("\n");
-    //pthread_join(thread_ReceivingFile,NULL); Mettre ou pas ? 
-    fgets(message,TAILLE,stdin);
-    int taille=(strlen(message)+1)*sizeof(char);
-    if(send(dS,&taille,sizeof(int),0)==0){quit();}
-    send(dS,message,(strlen(message)+1)*sizeof(char),0);
-    if(strcmp(message,"@ls::\n")==0 || strcmp(message,"@ls:\n")==0){
-      while(1){
-        int nbfiles=listfiles();
-        char choice[TAILLE];
-        fgets(choice,TAILLE,stdin);
-        if(strcmp(choice,"quit\n")!=0){ // Si il ecrit pas quit
-          int num=atoi(choice);
-          if(num>0 && num<nbfiles){
-            pthread_create(&thread_SendingFile,NULL,SendingFile,&num);
-            pthread_join(thread_SendingFile,NULL);
-            break;
-          }
-        }
-        else{
-          int quit=-1;
-          pthread_create(&thread_SendingFile,NULL,SendingFile,&quit);
-          pthread_join(thread_SendingFile,NULL);
-          break;
-        }
-      }
-    }
-    if(strcmp(message,fin)==0 || strcmp(message,"@end::\n")==0){
-        printf("#################\n");
-        exit(0);
-        }
-    }*/
 }
 
 
@@ -111,7 +118,6 @@ void *ReceivingFile(void* num){
     int* Num=num;
     int n= *Num; // Recup le numéro associé à chaque clients
     send(dS,&n,sizeof(int),0);
-    printf("Thread crée et num envoyé\n");
     dsF = socket(PF_INET, SOCK_STREAM, 0);
     if (dsF == -1) {
          perror("erreur dans l'initialisation du socket");
@@ -125,22 +131,18 @@ void *ReceivingFile(void* num){
         perror("erreur dans la connection du socket");
         exit(0);
     }
-    printf("Ok\n");
     int taille;
     recv(dsF, &taille,sizeof(int), 0);
     char filename[taille];
     recv(dsF, filename, taille, 0); 
-    printf("nom : %s\n",filename);
     char* folder="FichierTelecharge/";
     char path[(strlen(filename)+strlen(folder))*sizeof(char)];
     sprintf(path,"FichierTelecharge/%s",filename);
-    puts(path);
     FILE *fp;   
     fp=fopen(path,"w+");
     char buffer[SIZE];
     long filesize;
     recv(dsF,&filesize,sizeof(long),0);
-    printf("FILE SIZE : %ld\n",filesize);
     int cpt;
       for(int i=0;i<filesize;i+=SIZE){
         if(i+SIZE<filesize){
@@ -154,7 +156,8 @@ void *ReceivingFile(void* num){
         bzero(buffer,SIZE);
     }
     fclose(fp);
-    printf("File downloaded\n");
+    printvert("File downloaded\n");
+    printf("\n");
     shutdown(dsF,SHUT_RDWR);
     pthread_exit(NULL);
 }
@@ -162,7 +165,7 @@ void *ReceivingFile(void* num){
 int listfiles(int c){
     if (c == 1) {
         printf("\n");
-        printf("----------------------\n");
+        printcyan("----------------------\n");
     }
     DIR *d = opendir("./FilesToUpload");
     struct dirent *dir;
@@ -173,7 +176,7 @@ int listfiles(int c){
 
             if(dir->d_type==8){
                 if (c == 1) {
-                    printf("%d : %s\n",cpt, dir->d_name);
+                    printcyanfile(dir->d_name,cpt);
                 }  
                 cpt++;
             }
@@ -181,9 +184,10 @@ int listfiles(int c){
     closedir(d);
     }
     if (c == 1) {
-        printf("----------------------\n");
-        printf("Utilisez la commande @snd:filenumber: pour envoyer un fichier au serveur\n");
+        printcyan("----------------------\n");
+        printcyan("Utilisez la commande @snd:filenumber: pour envoyer un fichier au serveur\n");
     }
+    printf("\n");
     return cpt;
 }
 
@@ -236,7 +240,8 @@ void *SendingFile(void *num){
 
         bzero(buffer,SIZE);
     }
-    printf("File sended \n");
+    printvert("File sended \n");
+    printf("\n");
     fclose(fp);
 
     shutdown(dsF,SHUT_RDWR);
@@ -251,7 +256,9 @@ void *rcvMessage(void *ds) {
     recv(dS,&taillemessage,sizeof(int),0); 
     char buffer[taillemessage];
     recv(dS,buffer,taillemessage*sizeof(char),0);
-    printf("%s\n",buffer);
+    printf("\n");
+    printorange(buffer);
+    printf("\n");
     while(1){
         int taille;
         if(recv(dS, &taille, sizeof(int), 0)==0){quit();}
@@ -259,21 +266,48 @@ void *rcvMessage(void *ds) {
         if(taille<200){
             char *msg = (char*)malloc(taille*sizeof(char));
             recv(dS, msg, taille, 0);
-            puts(msg);
+            if (msg[0] == 'A') {
+                printrouge(msg);
+                printf("\n");
+            }
+            else if(msg[0]=='[') {
+                char msgcpy[taille];
+                strcpy(msgcpy,msg);
+                char * cpy;
+                cpy = strtok(msgcpy," ");
+                printbleu(msgcpy); // print channel en bleu
+                cpy=strtok(NULL," ");
+                printorange(cpy); // print pseudo en orange
+                cpy=strtok(NULL,"\0");
+                puts(cpy);
+                printf("\n");
+            }
+
+            else{
+                printrouge(msg);
+                printf("\n");
+                printf("\n");
+            }
         }
 
         else if (taille == 1000){
             recv(dS,buffer,taillemessage*sizeof(char),0);
-            printf("%s\n",buffer);
+            printf("\n");
+            printorange(buffer);
+            printf("\n");
         }
 
         else if (taille==1001){
-            printf("Déconnexion...\n");
+            printrouge("Déconnexion...\n");
+            printf("\n");
+            printf("\n");
             quit();
             exit(0);
         }
          else if (taille==1002){
-            printf("Déconnexion du channel...\n");
+            printrouge("Déconnexion du channel...\n");
+            printf("\n");
+            printf("\n");
             break;
             
         }
@@ -282,12 +316,13 @@ void *rcvMessage(void *ds) {
             recv(dS,&taillefichier,sizeof(int),0); 
             char bufferfichier[taillefichier];
             recv(dS,bufferfichier,taillefichier*sizeof(char),0);
-            puts(bufferfichier);
-
+            printcyan(bufferfichier);
+            printf("\n");
         }
 
         else if(taille == 10060){
-            printf("Fichier non valide\n");
+            printrouge("Fichier non valide\n");
+            printf("\n");
         }
 
         else if(taille == 10061){
@@ -306,7 +341,7 @@ void *rcvMessage(void *ds) {
             send(dS,&nbrfile,sizeof(int),0);
             recv(dS,&taille, sizeof(int), 0);
             if(taille == 10080) {
-                printf("Fichier non valide\n");
+                printrouge("Fichier non valide\n");
             }
 
             if(taille == 10081) {
@@ -321,10 +356,12 @@ void *rcvMessage(void *ds) {
             int estadmin;
             recv(dS,&estadmin, sizeof(int), 0);
             if(estadmin==1){
-                printf("Vous êtes bien connecté en tant qu'Admin, faites @man: pour voir les commandes\n");
+                printvert("Vous êtes bien connecté en tant qu'Admin, faites @man: pour voir les commandes\n");
+                printf("\n");
             }
             else{
-                printf("Mauvais mot de passe admin\n");
+                printrouge("Mauvais mot de passe admin\n");
+                printf("\n");
             }
         }
 
@@ -332,17 +369,18 @@ void *rcvMessage(void *ds) {
             int kickvalide;
             recv(dS,&kickvalide, sizeof(int), 0);
             if(kickvalide==-2){
-                printf("Impossible de kicker un autre administrateur\n");
+                printrouge("Impossible de kicker un autre administrateur\n");
+                printf("\n");
             }
             else if (kickvalide ==-1){
-                printf("Ce pseudo n'existe pas\n");
+                printrouge("Ce pseudo n'existe pas\n");
+                printf("\n");
             }
 
         }
 
         else if (taille == 10111){
             int channelok=0;
-            printf("avant while\n");
             pthread_cancel(thread_envoi);
             while(channelok!=1){
 
@@ -367,31 +405,34 @@ void *rcvMessage(void *ds) {
                 recv(dS,&channelok, sizeof(int), 0);
 
                 if(channelok==0){
-                    printf("Veuillez entrez un nom de channel non existant\n");
+                    printrouge("Veuillez entrez un nom de channel non existant\n");
                 }
                 else if(channelok==-1){
-                    printf("Veuillez ne pas laisser de champs vide\n");
+                    printrouge("Veuillez ne pas laisser de champs vide\n");
                 }
             }
             pthread_create(&thread_envoi,NULL,sendMessage,NULL);
-            printf("Channel Crée\n");
+            printf("\n");
+            printvert("Channel Crée\n");
+            printf("\n");
         }
 
         else if(taille==10110){
-            printf("Nombre maximum de channel atteind\n");
+            printrouge("Nombre maximum de channel atteint\n");
         }
 
         else if( taille==1012){
             int nbcl;
             recv(dS,&nbcl, sizeof(int), 0);
-            printf("NB CLIEBT CO : %d\n",nbcl);
-
-            int taillemessage3;
-            taillemessage3 -= 2;
-            recv(dS,&taillemessage3,sizeof(int),0); 
-            char buffer3[taillemessage3];
-            recv(dS,buffer3,(taillemessage3)*sizeof(char),0);
-            printf("%s\n",buffer3);
+            printcyan("Nombre de client connectés: ");
+            printcyanint(nbcl);
+            printf("\n");
+            int tailleclients;
+            recv(dS,&tailleclients,sizeof(int),0); 
+            char bufferclients[tailleclients];
+            recv(dS,bufferclients,(tailleclients)*sizeof(char),0);
+            printcyan(bufferclients);
+            printf("\n");
             
         }
         //-------------------- SI LE CLIENT TENTE UNE COMMANDE ADMIN  ---------------------//
@@ -399,8 +440,8 @@ void *rcvMessage(void *ds) {
 
         else if( taille==20000){
 
-            printf("Vous n'avez pas les droits d'administrateur, tentez @adm:PASSWORD: pour vous connecter\n");
-        
+            printrouge("Vous n'avez pas les droits d'administrateur, tentez @adm:PASSWORD: pour vous connecter\n");
+            printf("\n");
         }
         //-------------------- SI LE CLIENT SE FAIT KICK ---------------------//
 
@@ -408,7 +449,9 @@ void *rcvMessage(void *ds) {
             recv(dS, &taille, sizeof(int), 0);
             char *msg = (char*)malloc(taille*sizeof(char));
             recv(dS, msg, taille, 0);
-            printf("Vous vous êtes fait kicker par %s\n",msg);
+            printrouge("Vous vous êtes fait kicker par ");
+            printrouge(msg);
+            printf("\n");
             quit();
             exit(0);
         }
@@ -433,6 +476,7 @@ void *rcvMessage(void *ds) {
 
 
 void sendpseudo(int dS){
+    printf("\n");
     while(1){
         char pseudo[TAILLE];
         printf("Entrez un pseudo : ");
@@ -443,10 +487,16 @@ void sendpseudo(int dS){
         int pseudok;
         recv(dS,&pseudok,sizeof(int),0);
         if(pseudok==0){
-            printf("Ce pseudo est invalide ou déja utilisé \n");
+            printrouge("Ce pseudo est invalide ou déja utilisé \n");
+            printf("\n");
         }
         else{
-            printf("Bienvenue %s",pseudo);
+            printf("\n");
+            printvert("#####################################\n");
+            printvert("Bienvenue ");
+            printvert(pseudo);
+            printvert("#####################################\n");
+            printf("\n");
             return;
         }
     }
@@ -471,63 +521,80 @@ int main(int argc, char *argv[]) {
     int full;
     recv(dS, &full, sizeof(int), 0);
     if(full==1){
-        printf("Le serveur est plein pour l'instant \n");
+        printrouge("Le serveur est plein pour l'instant \n");
         quit();
     }
+
+    ////////////////////////////// Message Bienvenu /////////////////////////////
 
     int taillemessage;
     recv(dS,&taillemessage,sizeof(int),0); 
     char buffer[taillemessage];
     recv(dS,buffer,taillemessage*sizeof(char),0);
     printf("\n \n \n");
-    printf("%s\n",buffer);
+    //printf("%s\n",buffer);
+    printvert(buffer);
+    printf("\n");
+
+    ////////////////////////////// Liste Channel /////////////////////////////
+
     int nbchannels;
     recv(dS,&nbchannels,sizeof(int),0);
-    
-    
     int taillemessage2;
     taillemessage2 -= 2;
     recv(dS,&taillemessage2,sizeof(int),0); 
     char buffer3[taillemessage2];
     recv(dS,buffer3,(taillemessage2)*sizeof(char),0);
-    printf("%s\n",buffer3);
-    
-
+    printvert(buffer3);
+    printf("\n");
     printf("Rentrez le buméro d'un channel ou quit pour quitter\n#");
+    ////////////////////////////// Choix Channel /////////////////////////////
     char choiceChannel[TAILLE];
     fgets(choiceChannel,TAILLE,stdin);
+    printf("\n");
     int taillechoice=(strlen(choiceChannel)+1)*sizeof(char);
+    
     while (strcmp(choiceChannel,"quit\n")!= 0) {
         int numchoice=atoi(choiceChannel);
         if ((0<numchoice) && (numchoice<=nbchannels)) {
-            printf("num channel choisi : %d\n",numchoice);
             send(dS,&numchoice,sizeof(int),0);
             int etatchannel;
             recv(dS,&etatchannel,sizeof(int),0);
             if (etatchannel == 1) {
                 sendpseudo(dS);
-                printf("Création des thread.. \n");
-                
-                
-                
+                printvert("Création des thread.. \n");
+                        
                 pthread_create(&thread_envoi,NULL,sendMessage,NULL);
                 pthread_create(&thread_reception,NULL,rcvMessage,NULL);
 
                 pthread_join(thread_reception,NULL);
                 pthread_cancel(thread_envoi); 
-                printf("\n%s\n",buffer3);
-                printf("Rentrez un numéro d'un channel ou quit pour quitter\n#");
+                ////////////////////////////// Liste Channel /////////////////////////////
+
+                recv(dS,&nbchannels,sizeof(int),0);
+                taillemessage2 -= 2;
+                recv(dS,&taillemessage2,sizeof(int),0); 
+                char buffer3[taillemessage2];
+                recv(dS,buffer3,(taillemessage2)*sizeof(char),0);
+                printvert(buffer3);
+                printf("\n");
+                printf("Rentrez le buméro d'un channel ou quit pour quitter\n#");
                 fgets(choiceChannel,TAILLE,stdin);
+                printf("\n");
 
             }
             else {
-                printf("Channel plein, veuillez rentrer un channel différent\n#");
+                printrouge("Channel plein, veuillez rentrer un channel différent\n");
+                printf("#");
                 fgets(choiceChannel,TAILLE,stdin);
             }
         }
         else {
-            printf("\n%s\n",buffer3);
-            printf("Rentrez le buméro VALIDE d'un channel ou quit pour quitter\n#");
+            printf("\n");
+            printvert(buffer3);
+            printf("\n");
+            printrouge("Rentrez le buméro VALIDE d'un channel ou quit pour quitter\n");
+            printf("#");
             fgets(choiceChannel,TAILLE,stdin);
         }
 

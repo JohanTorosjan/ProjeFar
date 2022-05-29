@@ -105,12 +105,12 @@ void getnbclient(){
 }
 
 void decoclient(int numclient) {
-    pthread_mutex_lock(&mutex);
+
     allchannels[allclients[numclient].channel].clientsco--;
     Client client = {numclient,0,"",-1,0,0,0};
     allclients[numclient] = client; 
     nbclientsco --;
-    pthread_mutex_unlock(&mutex);
+
 }
 
 int getclientdispo(){
@@ -185,7 +185,7 @@ void writechannels(char* path){
 void writeclients(char* path){
     FILE *fpc;
     fpc=fopen(path,"w+");
-    for(int i=0;i<nbclientsco;i++){
+    for(int i=0;i<NBCLIENTCHANNEL*NBCHANNEL;i++){
         if(allclients[i].channel!=-1){
             char infoclient[strlen(allchannels[allclients[i].channel].nom)+strlen(allclients[i].pseudo)+27];
             printf("[%s] client N° %d : %s \n",allchannels[allclients[i].channel].nom,i+1,allclients[i].pseudo);
@@ -311,17 +311,19 @@ int SendPrivateMessage(char* msg,int n){
     }
     return -1;
 }
-void setpseudo(int n){
-    pthread_mutex_lock(&mutex);
+int setpseudo(int n){
+    
     int taillepseudo;
     int pseudok=0;
     while(pseudok==0){
         int rec = recv(allclients[n].dS,&taillepseudo,sizeof(int),0);
             /////////////////////// Deconnexion ///////////////////////
-        if(rec == 1){
-                decoclient(n);
+        if(rec == 0){
+                printf("ici\n");
+               // decoclient(n);
                 printf("client deco\n");
-                pthread_exit(NULL);
+                return -1;
+                // pthread_exit(NULL);
         }
 
         char pseudo[taillepseudo];
@@ -331,17 +333,19 @@ void setpseudo(int n){
         *pos='\0';
         pseudok=1;
         for (int i = 0; i < NBCLIENTCHANNEL*NBCHANNEL; i++) {
-            if( (strcmp(allclients[i].pseudo,pseudo)==0) || (strlen(pseudo)<2) || (pseudo[0]=='@') )
+            if( (strcmp(allclients[i].pseudo,pseudo)==0) || (strlen(pseudo)<2) || (pseudo[0]=='@') || (pseudo[0]==' ') )
             {
                 pseudok=0;
             }
         }
         send(allclients[n].dS,&pseudok,sizeof(int),0);
         if(pseudok==1){
+            pthread_mutex_lock(&mutex);
             allclients[n].pseudo=pseudo;
+            pthread_mutex_unlock(&mutex);
         }
     }
-     pthread_mutex_unlock(&mutex);
+     
 }
 
 
@@ -566,13 +570,13 @@ void *communication(void * NumCliAct){
         /////////////////////// Envoie Message ///////////////////////
 
         if (commande == -1) {
-            taille=strlen(msg)+strlen(allchannels[allclients[n].channel].nom)+strlen(allclients[n].pseudo)+16; 
+            taille=strlen(msg)+strlen(allchannels[allclients[n].channel].nom)+strlen(allclients[n].pseudo)+14; 
             char tosend[taille];
-            sprintf(tosend,"[ %s ] %s : %s\n",allchannels[allclients[n].channel].nom,allclients[n].pseudo,msg);
+            sprintf(tosend,"[%s] %s : %s\n",allchannels[allclients[n].channel].nom,allclients[n].pseudo,msg);
             
-            int tailleadmin=strlen(msg)+strlen(allchannels[allclients[n].channel].nom)+strlen(allclients[n].pseudo)+24; 
+            int tailleadmin=strlen(msg)+strlen(allchannels[allclients[n].channel].nom)+strlen(allclients[n].pseudo)+17; 
             char tosendadmin[tailleadmin];
-            sprintf(tosendadmin,"[ %s ] #admin: %s : %s\n",allchannels[allclients[n].channel].nom,allclients[n].pseudo,msg);
+        sprintf(tosendadmin,"ADMIN [%s] : %s\n",allclients[n].pseudo,msg);
             
             for(int i=0;i<nbclientsco;i++){
                 if(allclients[i].num!=allclients[n].num && allclients[n].channel==allclients[i].channel){
@@ -632,6 +636,17 @@ void *communication(void * NumCliAct){
                 allclients[n].pseudo="";
                 allclients[n].channel=-1;
                 printf("client change channel\n");
+
+                int nbchannels=getnbchannels();
+                send(allclients[n].dS,&nbchannels,sizeof(int),0);
+                writechannels("Channels.txt");
+                int taillefichier2=getfilesize("Channels.txt");
+                char* bufferChannel=malloc(taillefichier2*sizeof(char));
+                send(allclients[n].dS,&taillefichier2,sizeof(int),0);
+                bufferChannel=getbuffer("Channels.txt");
+                send(allclients[n].dS,bufferChannel,taillefichier2*sizeof(char),0);
+                free(bufferChannel);
+
                 pthread_exit(NULL);
             }
             if(commande == 4) {
@@ -640,10 +655,10 @@ void *communication(void * NumCliAct){
                     printf("Message pv envoyé\n");
                 }
                 else{
-                    taille=118;
+                    taille=73;
                     char tosend[taille];
                     printf("No user with this pseudo\n");
-                    sprintf(tosend,"Pseudo invalide, utilsez @acc: pour voir tout les utilisateurs connecté et @cc pour voir les utilisateurs du channel");
+                    sprintf(tosend,"Pseudo invalide, utilsez @acc: pour voir tout les utilisateurs connecté");
                     taille=strlen(tosend)+1;
                     send(allclients[n].dS, &taille, sizeof(int), 0) ;
                     send(allclients[n].dS, tosend, strlen(tosend)+1, 0) ;    
@@ -771,7 +786,7 @@ void *communication(void * NumCliAct){
                             int rec = recv(allclients[n].dS,&taillenom,sizeof(int),0);
                     
                     /////////////////////// Deconnexion ///////////////////////
-                            if(rec == 1){
+                            if(rec == 0){
                                 decoclient(n);
                                 printf("client deco\n");
                                 pthread_exit(NULL);
@@ -790,7 +805,7 @@ void *communication(void * NumCliAct){
                             rec = recv(allclients[n].dS,&tailledescr,sizeof(int),0);
                     
                     /////////////////////// Deconnexion ///////////////////////
-                            if(rec == 1){
+                            if(rec == 0){
                                 decoclient(n);
                                 printf("client deco\n");
                                 pthread_exit(NULL);
@@ -819,14 +834,13 @@ void *communication(void * NumCliAct){
             if(commande == 12){
                 taille=1012;
                 send(allclients[n].dS,&taille, sizeof(int), 0);
-        
                 send(allclients[n].dS,&nbclientsco,sizeof(int),0);
-                writeclients("CLients.txt");
-                int taillefichier3=getfilesize("CLients.txt");
-                char* bufferClient=malloc(taillefichier3*sizeof(char));
-                send(allclients[n].dS,&taillefichier3,sizeof(int),0);
-                bufferClient=getbuffer("CLients.txt");
-                send(allclients[n].dS,bufferClient,taillefichier3*sizeof(char),0);
+                writeclients("Clients.txt");
+                int tailleclient=getfilesize("Clients.txt");
+                char* bufferClient=malloc(tailleclient*sizeof(char));
+                send(allclients[n].dS,&tailleclient,sizeof(int),0);
+                bufferClient=getbuffer("Clients.txt");
+                send(allclients[n].dS,bufferClient,tailleclient*sizeof(char),0);
                 free(bufferClient);     
             }
 
@@ -873,7 +887,12 @@ void *serveur(void * NumCliAct){
     bufferChannel=getbuffer("Channels.txt");
     send(allclients[n].dS,bufferChannel,taillefichier2*sizeof(char),0);
     free(bufferChannel);
+
+    
     while (1) {
+
+        /////////////////////// Choix Channel Client ///////////////////////
+
         int choixclient;
         int rec = recv(allclients[n].dS,&choixclient,sizeof(int),0)==0;
 
@@ -896,10 +915,21 @@ void *serveur(void * NumCliAct){
                 printf("channel pein ! : %d\n",choixclient);
             }
             else {
+                printf("après elsse\n");
                 send(allclients[n].dS,&etatChannel,sizeof(int),0);
+                printf("après etat\n");
                 allclients[n].channel = choixclient-1;
-                setpseudo(n);
+                printf("après choix\n");
+                int okpseudo=setpseudo(n);
+                printf("après okpseudo\n");
+
                 allchannels[choixclient-1].clientsco++;
+                printf("avant iif \n");
+                if(okpseudo==-1){
+                    decoclient(n);
+                    printf("Client déconnecté \n");
+                    pthread_exit(NULL);
+                }
                 printf("Client numéro %d : %s rejoins le channel %d\n",allclients[n].num,allclients[n].pseudo,allclients[n].channel);
                 printf("Création des thread.. \n");
                 pthread_mutex_lock(&mutex);
@@ -917,7 +947,7 @@ void *serveur(void * NumCliAct){
             }
         }
     }
-    
+
 
     
 }

@@ -7,10 +7,9 @@ Commandes utilisateurs :
 @mp:PSEUDO:MESSAGE              Pour envoyer un message privé
 @ls:                            Pour lister les fichiers envoyables au serveur 
 @snd:FILE                       Pour envoyer un fichier au serveur
-@lsS:                           Pour lister les fichiers téléchargeables du serveur  
+@lss:                           Pour lister les fichiers téléchargeables du serveur  
 @get:FILE                       Pour télécharger un fichier depuis le serveur
 @acc:                           Pour lister tout les clients connectés
-@cc:                            Pour lister tout les clients connectés sur le channel courrant
 @lc:                            Pour quitter le channel
 @end:                           Pour se déconnecter du serveur
 
