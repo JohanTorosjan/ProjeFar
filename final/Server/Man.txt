@@ -19,5 +19,6 @@ Commandes admin :
 @adm:PASSWORD:                  Pour se connecter en admin 
 @crt:                           Pour créer un nouveau channel 
 @kick:PSEUDO                    Déconnecte le client
+@acm:MESSAGE                    Pour envoyer un message à tout les channels 
 
 ----------------------------------------------------------------------

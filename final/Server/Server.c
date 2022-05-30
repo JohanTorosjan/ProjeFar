@@ -261,7 +261,7 @@ int command(char* msg){
     strcpy(allCommand[9], "@kick");
     strcpy(allCommand[10], "@crt");
     strcpy(allCommand[11], "@acc");
-    strcpy(allCommand[12], "@cc");
+    strcpy(allCommand[12], "@acm");
     if(msg[0]=='@'){
         char* msgcopy=malloc(strlen(msg)+1);
         strcpy(msgcopy,msg);
@@ -378,6 +378,16 @@ char* getfilename(int n){
     }
     return filename;
 }
+
+char * getacm(char * msg){
+    char msgcpy[strlen(msg)];
+    strcpy(msgcpy,msg);
+    char * cpy;
+    cpy = strtok(msgcpy,":");    
+    cpy=strtok(NULL,"\0");
+    return cpy;
+}
+
 
 int verifadmin(char * msg){
     char* mdp;
@@ -576,7 +586,7 @@ void *communication(void * NumCliAct){
             
             int tailleadmin=strlen(msg)+strlen(allchannels[allclients[n].channel].nom)+strlen(allclients[n].pseudo)+17; 
             char tosendadmin[tailleadmin];
-        sprintf(tosendadmin,"ADMIN [%s] : %s\n",allclients[n].pseudo,msg);
+            sprintf(tosendadmin,"ADMIN [%s] : %s\n",allclients[n].pseudo,msg);
             
             for(int i=0;i<nbclientsco;i++){
                 if(allclients[i].num!=allclients[n].num && allclients[n].channel==allclients[i].channel){
@@ -843,6 +853,23 @@ void *communication(void * NumCliAct){
                 send(allclients[n].dS,bufferClient,tailleclient*sizeof(char),0);
                 free(bufferClient);     
             }
+
+            if(commande ==13){
+                int verificationadmin=estadmin(n);
+                if(verificationadmin==1){
+                    char * acm=getacm(msg);
+                    int tailleadmin=strlen(msg)+strlen(allchannels[allclients[n].channel].nom)+strlen(allclients[n].pseudo)+33; 
+                    char tosendadmin[tailleadmin];
+                    sprintf(tosendadmin,"ADMIN [%s] TO ALL CHANNELS : %s\n",allclients[n].pseudo,acm);
+                    for(int i=0;i<nbclientsco;i++){
+                        send(allclients[i].dS,&tailleadmin, sizeof(int), 0) ;
+                        send(allclients[i].dS, tosendadmin, strlen(tosendadmin)+1, 0) ;
+                    }
+                }
+            }
+
+
+
 
         }
         //Si la commande n'est pas valide 
