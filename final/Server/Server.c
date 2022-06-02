@@ -61,6 +61,18 @@ Channel allchannels[NBCHANNEL]; // Tableau des channels qui restent
 
 /////////////////////////////////////////////////////
 
+void printrouge(char * msg){
+    printf("\033[31m" );
+    printf("%s",msg);
+    printf("\033[37m" );
+}
+
+void printvert(char * msg){
+    printf("\033[32m" );
+    printf("%s",msg);
+    printf("\033[37m" );
+}
+
 void innitialiseclients() {
     Client client = {0,0,"",-1,0,0,0};
     for (int i = 0; i < NBCLIENTCHANNEL*NBCHANNEL; i++) {
@@ -139,7 +151,7 @@ char* getbuffer(char* path){
     FILE *fp;
     char c;
     fp=fopen(path,"rt");
-    int taillefichier=getfilesize(path);
+    int taillefichier=1+getfilesize(path);
     char* buffer=malloc(taillefichier*sizeof(char));
     int i=0;
     while((c=fgetc(fp))!=EOF){
@@ -150,7 +162,6 @@ char* getbuffer(char* path){
     return buffer;
 }
 int createchannel(char* nom, char* descr){
-    printf("NOM : %s, DESCR : %s\n",nom,descr);
     int i=0;
     while(allchannels[i].num!=-1){
         i++;
@@ -162,8 +173,8 @@ int createchannel(char* nom, char* descr){
     strcpy(allchannels[i].nom,nom);
     allchannels[i].description=malloc(strlen(descr)*sizeof(char));
     strcpy(allchannels[i].description,descr);
-    printf("NOM : %s, DESCR : %s\n",allchannels[i].nom,allchannels[i].description);
-    printf("Channel numéro %d crée\n",i);
+    printvert("Channel crée");
+    printf("\n");
     return i;
 }
 void writechannels(char* path){
@@ -172,28 +183,27 @@ void writechannels(char* path){
     for(int i=0;i<NBCHANNEL;i++){
         if(allchannels[i].num!=-1){
             char channels[strlen(allchannels[i].nom)+strlen(allchannels[i].description)];
-            printf("#%d %s : %s (%d/%d)\n",i+1,allchannels[i].nom,allchannels[i].description,allchannels[i].clientsco,NBCLIENTCHANNEL);
             sprintf(channels,"#%d %s : %s (%d/%d)\n",i+1,allchannels[i].nom,allchannels[i].description,allchannels[i].clientsco,NBCLIENTCHANNEL);
             fwrite(channels,strlen(channels)*sizeof(char),1,fpc);
         }  
     }
-    
+    fwrite("\0",1,1,fpc);
     fclose(fpc);
 }
 
 
 void writeclients(char* path){
+    
     FILE *fpc;
     fpc=fopen(path,"w+");
     for(int i=0;i<NBCLIENTCHANNEL*NBCHANNEL;i++){
         if(allclients[i].channel!=-1){
             char infoclient[strlen(allchannels[allclients[i].channel].nom)+strlen(allclients[i].pseudo)+27];
-            printf("[%s] client N° %d : %s \n",allchannels[allclients[i].channel].nom,i+1,allclients[i].pseudo);
             sprintf(infoclient,"[%s] client N° %d : %s \n",allchannels[allclients[i].channel].nom,i+1,allclients[i].pseudo);
             fwrite(infoclient,strlen(infoclient)*sizeof(char),1,fpc);
         }  
     }
-    
+    fwrite("\0",1,1,fpc);
     fclose(fpc);
 }
 
@@ -214,15 +224,11 @@ int listefiles(char * path,int writefile){
     if(writefile==1){
         FILE *fpc;
         fpc=fopen(path,"w+");
-        printf("cpt : %d\n",cpt);
         d = opendir("./ServerStorage");
         int nbrfichier=cpt;
         cpt=1;
         while ((dir = readdir(d)) != NULL){
             if(dir->d_type==8){
-                printf("cpt : %d\n",cpt);
-                printf("nbr : %d\n",nbrfichier);
-                
                 if(nbrfichier!=cpt){
                     char namefile[strlen(dir->d_name+4)];
                     sprintf(namefile,"%d : %s\n",cpt,dir->d_name);
@@ -266,13 +272,9 @@ int command(char* msg){
         char* msgcopy=malloc(strlen(msg)+1);
         strcpy(msgcopy,msg);
         char* token=strtok(msgcopy,":");
-        printf("avant if\n");
         int c = 0;
-        printf("token : %s\n",token);
         for(int i=0;i<13;i++){
-            printf("%s\n",allCommand[i]);
             if(strcmp(token,allCommand[i])==0){
-                printf("i : %d\n",i);
                 c = i+1;
             }     
         }
@@ -300,7 +302,6 @@ int SendPrivateMessage(char* msg,int n){
     pseudo=strtok(NULL,":");
     for(int i=0;i<nbclientsco;i++){
         if(strcmp(allclients[i].pseudo,pseudo)==0){
-            printf("Private message from %s for %s: %s\n",allclients[n].pseudo,allclients[i].pseudo,msgcopy);
             int taille=strlen(msgcopy)+strlen(allclients[n].pseudo)+20; 
             char tosend[taille];
             sprintf(tosend,"---\n[MP]%s-> %s---\n", allclients[n].pseudo,msgcopy);
@@ -319,9 +320,7 @@ int setpseudo(int n){
         int rec = recv(allclients[n].dS,&taillepseudo,sizeof(int),0);
             /////////////////////// Deconnexion ///////////////////////
         if(rec == 0){
-                printf("ici\n");
                // decoclient(n);
-                printf("client deco\n");
                 return -1;
                 // pthread_exit(NULL);
         }
@@ -464,12 +463,10 @@ void * sending_file(void* numcliact){
     int n=*numCliAct; // Recup le numéro associé à chaque clients
     int FileNumber;
     recv(allclients[n].dS,&FileNumber,sizeof(int),0);
-    printf("Création thread avec fichier voulu : %d\n",FileNumber);
     struct sockaddr_in aCF;
     socklen_t lgF = sizeof(struct sockaddr_in);
     allclients[n].dsF=accept(dsF,(struct sockaddr *)&aCF,&lgF);
     char* name = getfilename(FileNumber); // a free 
-    printf("nom : %s\n",name);
     int tailleF=(strlen(name)+1)*sizeof(char);
     send(allclients[n].dsF,&tailleF,sizeof(int),0);
     send(allclients[n].dsF,name,(strlen(name)+1)*sizeof(char),0);
@@ -480,7 +477,6 @@ void * sending_file(void* numcliact){
     puts(path);
     fp = fopen(path,"rb");
     if(fp==NULL){
-        printf("fichier vide\n");
         shutdown(dsF,SHUT_RDWR);
         pthread_exit(NULL);
     } 
@@ -489,7 +485,6 @@ void * sending_file(void* numcliact){
     rewind(fp);
     char buffer[SIZE];
     int cpt;
-    printf("FILE SIZE : %ld\n",filesize);
     send(allclients[n].dsF,&filesize,sizeof(long),0);
     for(int i=0;i<filesize;i+=SIZE){
         if(i+SIZE<filesize){
@@ -502,7 +497,8 @@ void * sending_file(void* numcliact){
         send(allclients[n].dsF,buffer,sizeof(buffer),0);
         bzero(buffer,SIZE);
     }
-    printf("File sended \n");
+    printvert("File sended \n");
+    printf("\n");
     fclose(fp);
     pthread_exit(NULL);
 }
@@ -521,7 +517,6 @@ void * receive_file(void *numcliact){
     }
     char *filename =(char*)malloc(taille*sizeof(char));
     recv( allclients[n].dsF,filename,taille*sizeof(char),0); 
-    printf("Downloading %s\n",filename);
     ///
     FILE *fp;   
     char* folder="ServerStorage/";
@@ -531,7 +526,6 @@ void * receive_file(void *numcliact){
     char buffer[SIZE];
     long filesize;
     recv(allclients[n].dsF,&filesize,sizeof(long),0);
-    printf("Size : %ld\n",filesize);
     int cpt;
         for(int i=0;i<filesize;i+=SIZE){
             if(i+SIZE<filesize){
@@ -545,7 +539,8 @@ void * receive_file(void *numcliact){
             bzero(buffer,SIZE);
         }
     fclose(fp);
-    printf("File downloaded\n");
+    printvert("File downloaded\n");
+    printf("\n");
     pthread_exit(NULL);
 }
 void *communication(void * NumCliAct){
@@ -554,12 +549,11 @@ void *communication(void * NumCliAct){
 
     int* numCliAct=NumCliAct;
     int n=*numCliAct; // Recup le numéro associé à chaque clients
-    printf("OK client numéro : %d\n",n);
     int taille;
 
     /////////////////////// Envoie Commandes ///////////////////////
 
-    int taillefichier=getfilesize("Man.txt");
+    int taillefichier=1+getfilesize("Man.txt");
     send(allclients[n].dS,&taillefichier,sizeof(int),0);
     char* bufferMan=malloc(taillefichier*sizeof(char));
     bufferMan=getbuffer("Man.txt");
@@ -606,7 +600,6 @@ void *communication(void * NumCliAct){
         /////////////////////// Commandes ///////////////////////
 
         if(commande>0){
-            printf("command numéro ; %d\n",commande);
 
             /////////////////////// Commande Man ///////////////////////
             if(commande==1){
@@ -645,12 +638,10 @@ void *communication(void * NumCliAct){
                 allchannels[allclients[n].channel].clientsco--;
                 allclients[n].pseudo="";
                 allclients[n].channel=-1;
-                printf("client change channel\n");
-
                 int nbchannels=getnbchannels();
                 send(allclients[n].dS,&nbchannels,sizeof(int),0);
                 writechannels("Channels.txt");
-                int taillefichier2=getfilesize("Channels.txt");
+                int taillefichier2=1+getfilesize("Channels.txt");
                 char* bufferChannel=malloc(taillefichier2*sizeof(char));
                 send(allclients[n].dS,&taillefichier2,sizeof(int),0);
                 bufferChannel=getbuffer("Channels.txt");
@@ -662,12 +653,14 @@ void *communication(void * NumCliAct){
             if(commande == 4) {
                 int pv=SendPrivateMessage(msg,n);
                 if(pv>=0){
-                    printf("Message pv envoyé\n");
+                    printvert("Message pv envoyé\n");
+                    printf("\n");
                 }
                 else{
                     taille=73;
                     char tosend[taille];
-                    printf("No user with this pseudo\n");
+                    printrouge("No user with this pseudo\n");
+                    printf("\n");
                     sprintf(tosend,"Pseudo invalide, utilsez @acc: pour voir tout les utilisateurs connecté");
                     taille=strlen(tosend)+1;
                     send(allclients[n].dS, &taille, sizeof(int), 0) ;
@@ -679,7 +672,7 @@ void *communication(void * NumCliAct){
                 listefiles("fichiersdisponibles.txt",1);
                 taille=1005;
                 send(allclients[n].dS,&taille, sizeof(int), 0) ;
-                int taillefichier=getfilesize("fichiersdisponibles.txt");
+                int taillefichier=1+getfilesize("fichiersdisponibles.txt");
                 send(allclients[n].dS,&taillefichier,sizeof(int),0);
                 char* bufferfiles=malloc(taillefichier*sizeof(char));
                 bufferfiles=getbuffer("fichiersdisponibles.txt");
@@ -689,7 +682,6 @@ void *communication(void * NumCliAct){
 
             if(commande == 6 ) {
                 int numvoulu=GetFileNum(msg,listefiles("fichiersdisponibles.txt",0));
-                printf("NUm voulu : %d\n",numvoulu);
                 if(numvoulu == 0){
                     taille=10060;
                     send(allclients[n].dS,&taille, sizeof(int), 0) ;
@@ -716,7 +708,6 @@ void *communication(void * NumCliAct){
                 send(allclients[n].dS,&taille, sizeof(int), 0);
                 recv(allclients[n].dS,&nbfichier,sizeof(int),0);
                 int numvoulu=GetFileNum(msg,nbfichier);
-                printf("%d\n",numvoulu);
                 taille = 10080;
                 if (numvoulu == 0) {
                     taille = 10080;
@@ -727,7 +718,8 @@ void *communication(void * NumCliAct){
                     taille = 10081;
                     send(allclients[n].dS,&taille, sizeof(int), 0);
                     send(allclients[n].dS,&numvoulu, sizeof(int), 0);
-                    printf("Ready to receive a file");
+                    printvert("Ready to receive a file");
+                    printf("\n");
                     pthread_create(&files_receive[n],NULL,receive_file,&n);
                     pthread_join(files_receive[n],NULL);
                 }
@@ -752,7 +744,6 @@ void *communication(void * NumCliAct){
                     taille = 1010;
                     send(allclients[n].dS,&taille, sizeof(int), 0);    
                     int valide=kickvalide(msg);
-                    printf(" valide : %d\n",valide);
                     send(allclients[n].dS,&valide, sizeof(int),0);
                     if(valide>=0){
                         
@@ -789,7 +780,8 @@ void *communication(void * NumCliAct){
                         
                         int channelok=0;
                         while(channelok!=1){
-                            printf("MODE RECEPTION \n");
+                            printvert("Mode reception\n");
+                            printf("\n");
                             
             //--------------------------------reception nom---------------------------------//
                             int taillenom;
@@ -798,13 +790,11 @@ void *communication(void * NumCliAct){
                     /////////////////////// Deconnexion ///////////////////////
                             if(rec == 0){
                                 decoclient(n);
-                                printf("client deco\n");
                                 pthread_exit(NULL);
                             }
 
                             char nomchannel[taillenom];
                             recv(allclients[n].dS,nomchannel,sizeof(char)*taillenom,0);
-                            puts(nomchannel);
                             char *pos;
                             pos=strchr(nomchannel,'\n');
                             *pos='\0';
@@ -817,12 +807,10 @@ void *communication(void * NumCliAct){
                     /////////////////////// Deconnexion ///////////////////////
                             if(rec == 0){
                                 decoclient(n);
-                                printf("client deco\n");
                                 pthread_exit(NULL);
                             }
                             char descriptionchannel[tailledescr];
                             recv(allclients[n].dS,descriptionchannel,sizeof(char)*tailledescr,0);
-                            puts(descriptionchannel);
                             pos=strchr(descriptionchannel,'\n');
                             *pos='\0';
             //------------------------------------------------------------------------------------//
@@ -846,7 +834,7 @@ void *communication(void * NumCliAct){
                 send(allclients[n].dS,&taille, sizeof(int), 0);
                 send(allclients[n].dS,&nbclientsco,sizeof(int),0);
                 writeclients("Clients.txt");
-                int tailleclient=getfilesize("Clients.txt");
+                int tailleclient=1+getfilesize("Clients.txt");
                 char* bufferClient=malloc(tailleclient*sizeof(char));
                 send(allclients[n].dS,&tailleclient,sizeof(int),0);
                 bufferClient=getbuffer("Clients.txt");
@@ -867,9 +855,6 @@ void *communication(void * NumCliAct){
                     }
                 }
             }
-
-
-
 
         }
         //Si la commande n'est pas valide 
@@ -893,10 +878,8 @@ void *serveur(void * NumCliAct){
     
     int* numCliAct=NumCliAct;
     int n=*numCliAct; // Recup le numéro associé à chaque clients
-    
 
-    printf("Connexion du client numéro %d\n",n);
-    int taillefichier=getfilesize("Welcome.txt");
+    int taillefichier=1+getfilesize("Welcome.txt");
     send(allclients[n].dS,&taillefichier,sizeof(int),0);
     char* buffer=malloc(taillefichier*sizeof(char));
     buffer=getbuffer("Welcome.txt");
@@ -908,7 +891,7 @@ void *serveur(void * NumCliAct){
     int nbchannels=getnbchannels();
     send(allclients[n].dS,&nbchannels,sizeof(int),0);
     writechannels("Channels.txt");
-    int taillefichier2=getfilesize("Channels.txt");
+    int taillefichier2=1+getfilesize("Channels.txt");
     char* bufferChannel=malloc(taillefichier2*sizeof(char));
     send(allclients[n].dS,&taillefichier2,sizeof(int),0);
     bufferChannel=getbuffer("Channels.txt");
@@ -927,49 +910,40 @@ void *serveur(void * NumCliAct){
 
         if(rec == 1){
                 decoclient(n);
-                printf("client deco\n");
+                printrouge("client deco\n");
+                printf("\n");
                 pthread_exit(NULL);
         }
 
         /////////////////////// Choix Channel ///////////////////////
 
         else {
-            printf("choix client : %d\n",choixclient);
             int etatChannel = 1;
             if (allchannels[choixclient-1].clientsco == NBCLIENTCHANNEL) {
                 etatChannel = 0;
                 send(allclients[n].dS,&etatChannel,sizeof(int),0);
-                printf("channel pein ! : %d\n",choixclient);
             }
             else {
-                printf("après elsse\n");
                 send(allclients[n].dS,&etatChannel,sizeof(int),0);
-                printf("après etat\n");
                 allclients[n].channel = choixclient-1;
-                printf("après choix\n");
                 int okpseudo=setpseudo(n);
-                printf("après okpseudo\n");
-
                 allchannels[choixclient-1].clientsco++;
-                printf("avant iif \n");
                 if(okpseudo==-1){
                     decoclient(n);
-                    printf("Client déconnecté \n");
+                    printrouge("Client déconnecté \n");
+                    printf("\n");
                     pthread_exit(NULL);
                 }
                 printf("Client numéro %d : %s rejoins le channel %d\n",allclients[n].num,allclients[n].pseudo,allclients[n].channel);
-                printf("Création des thread.. \n");
                 pthread_mutex_lock(&mutex);
                 int numcliact=allclients[n].num;
                  pthread_mutex_unlock(&mutex);
                 pthread_create(&ThreadClientsCo[allclients[n].num],NULL,communication,&numcliact);
                 pthread_join(ThreadClientsCo[allclients[n].num],NULL);
-                printf("ici ok \n");
                 if(allclients[n].isConnected==0){
                     printf("Client déconnecté \n");
                     pthread_exit(NULL);
                 }
-                printf("ici ok2 \n");
         /////////////////////// Communication ///////////////////////
             }
         }
@@ -992,9 +966,11 @@ int main(int argc, char *argv[]) {
     innitialiseclients();
   
 // ---------------------------------------------------------------------------------------------//
-
-    printf("Démarage\n");
+    printvert("########################################################\n");
+    printvert("Démarage\n");
+    printvert("########################################################");
    
+   printf("\n");
 // ---------------------------------------------------------------------------------------------//
 
 
@@ -1033,9 +1009,7 @@ int main(int argc, char *argv[]) {
 
     int full=0;
     while(1){
-        printf("blo\n");
         dSC=accept(dS,(struct sockaddr *)&aC,&lg);
-        printf("quant\n");
         int numcliact = getclientdispo();
         if(numcliact == -1){
             full=1;
@@ -1049,7 +1023,6 @@ int main(int argc, char *argv[]) {
             pthread_mutex_unlock(&mutex); //mutex unlock
             allclients[numcliact].isConnected = 1;
             allclients[numcliact].dS = dSC;
-            printf("numcliact : %d\n",numcliact);
             pthread_create(&ThreadClientsCo[numcliact],NULL,serveur,&numcliact);
         }            
     }   
